@@ -1,38 +1,35 @@
-console.log('Starting app.js');
-
-const fs = require('fs');
-const _ = require('lodash');
+const request = require('request');
 const yargs = require('yargs');
 
-const notes = require('./notes.js');
+const argv = yargs
+  .options({
+    a: {
+      demand: true,
+      alias: 'address',
+      describe: 'Address to fetch weather for',
+      string: true
+    }
+  })
+  .help()
+  .alias('help', 'h')
+  .argv;
 
-const argv = yargs.argv;
-var command = argv._[0];
-console.log('Command: ', command);
-console.log('Yargs', argv);
+var encodedAddress = encodeURIComponent(argv.address);
 
-if (command === 'add') {
-  var note = notes.addNote(argv.title, argv.body);
-  if (note) {
-    console.log('Note created');
-    notes.logNote(note);
-  } else {
-    console.log('Note title taken');
+request({
+  url: `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}`,
+  json: true
+  }, (error, response, body) => {
+    if (error) {
+      console.log('Unable to connect to Google servers.');
+    } 
+    else if (body.status === 'ZERO_RESULTS') {
+      console.log('Unable to find that address.');
+    } 
+    else if (body.status === 'OK') {
+      console.log(`Address: ${body.results[0].formatted_address}`);
+      console.log(`Latitude: ${body.results[0].geometry.location.lat}`);
+      console.log(`Longitude: ${body.results[0].geometry.location.lng}`);
+    }
   }
-} else if (command === 'list') {
-  notes.getAll();
-} else if (command === 'read') {
-  var note = notes.getNote(argv.title);
-  if (note) {
-    console.log('Note found');
-    notes.logNote(note);
-  } else {
-    console.log('Note not found');
-  }
-} else if (command === 'remove') {
-  var noteRemoved = notes.removeNote(argv.title);
-  var message = noteRemoved ? 'Note was removed' : 'Note not found';
-  console.log(message);
-} else {
-  console.log('Command not recognized');
-}
+);
